@@ -28,7 +28,6 @@ class handDetector():
         return img
 
     def findPosition(self, img, handNo=0, draw=True):
-
         lmList = []
         if self.results.multi_hand_landmarks:
             myHand = self.results.multi_hand_landmarks[handNo]
@@ -44,30 +43,30 @@ class handDetector():
         return lmList
 
 
-def main():
-    pTime = 0
-    cTime = 0
-    cap = cv2.VideoCapture(0)
-    detector = handDetector()
-    while True:
-        success, img = cap.read()
-        img = detector.findHands(img)
-        lmList = detector.findPosition(img)
-        if len(lmList) != 0:
-            print(lmList[4])
-
-        cTime = time.time()
-        subTime = cTime - pTime
-        if subTime != 0:
-            fps = 1 / subTime
-            pTime = cTime
-
-        cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
-                    (255, 0, 255), 3)
-
-        cv2.imshow("Image", img)
-        cv2.waitKey(1)
-
-
-if __name__ == "__main__":
-    main()
+# def main():
+#     pTime = 0
+#     cTime = 0
+#     cap = cv2.VideoCapture(0)
+#     detector = handDetector()
+#     while True:
+#         success, img = cap.read()
+#         img = detector.findHands(img)
+#         lmList = detector.findPosition(img)
+#         if len(lmList) != 0:
+#             print(lmList[4])
+#
+#         cTime = time.time()
+#         subTime = cTime - pTime
+#         if subTime != 0:
+#             fps = 1 / subTime
+#             pTime = cTime
+#
+#         cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
+#                     (255, 0, 255), 3)
+#
+#         cv2.imshow("Image", img)
+#         cv2.waitKey(1)
+#
+#
+# if __name__ == "__main__":
+#     main()
