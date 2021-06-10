@@ -1,9 +1,7 @@
 import time
 import numpy as np
 import cv2
-import mediapipe as mp
 import HandTrackingModule as htm
-import math
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
@@ -41,51 +39,49 @@ def main():
     interface = devices.Activate(
         IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
-    # volume.GetMute()
-    # volume.GetMasterVolumeLevel()
-
-    volumeRange = volume.GetVolumeRange()
-    volumeMax = volumeRange[1]
-    volumeMin = volumeRange[0]
-    volBar = 500
+    volBar = 350
     volPercent = 0
-    myPCVolume = 0
-
+    colorVolume = (255,0,0)
     while True:
         success, img = vc.cap.read()
+        # deteksi tangan pada camera
         img = detector.findHands(img)
-        lmList = detector.findPosition(img, draw=False)
+        lmList,bounding_box = detector.findPosition(img, draw=True)
         if len(lmList) != 0 :
-            # print(lmList[4],lmList[8])
-            # koordinat
-            x1,y1 = lmList[4][1], lmList[4][2]
-            x2,y2 = lmList[8][1], lmList[8][2]
-            cx,cy = (x1+x2)//2, (y1+y2)//2
 
-            cv2.circle(img, (x1,y1), 10, (255,0,0), cv2.FILLED)
-            cv2.circle(img, (x2,y2), 10, (255,0,0), cv2.FILLED)
-            cv2.line(img, (x1,y1),(x2,y2), (255,0,0),3)
-            cv2.circle(img, (cx,cy), 10, (255,0,0), cv2.FILLED)
+            #Convert ukuran tangan ke bounding box
+            luas_bounding_box = (bounding_box[2]-bounding_box[0]) * (bounding_box[3]-bounding_box[1])//1000
 
-            #cari panjang line
-            # panjang line 50 - 400
-            lengthLine = math.hypot(x2-x1,y2-y1)
+            if 70<luas_bounding_box<300:
+                #Jarak antara jempol dan telunjuk
+                lengthLine, img, lengtInfo= detector.findDistance(4,8,img)
+                print(lengthLine)
 
-            # convert range line kedalam range volume
-            myPCVolume = np.interp(lengthLine, [50, 400], [volumeMin,volumeMax])
-            volBar = np.interp(lengthLine, [50,400], [500,150])
-            volPercent = np.interp(lengthLine, [50,400], [0,100])
-            print(lengthLine,myPCVolume)
-            # set volume
-            volume.SetMasterVolumeLevel(myPCVolume, None)
+                #convert volume
+                volBar = np.interp(lengthLine, [50, 350], [350, 150])
+                volPercent = np.interp(lengthLine, [50, 350], [0, 100])
 
-            if lengthLine<=50:
-                cv2.circle(img, (cx,cy), 10, (0,0,255), cv2.FILLED)
+
+                #Kurangi resolusi agar lebih smooth
+                smoothness = 5
+                volPercent = smoothness * round(volPercent/smoothness)
+
+                #Cek jari lain up untuk set volume
+                fingers = detector.fingersUp()
+                if fingers[4] :
+                    # set volume
+                    colorVolume = (0, 0, 255)
+                    volume.SetMasterVolumeLevelScalar(volPercent / 100, None)
+                    cv2.circle(img, (lengtInfo[4], lengtInfo[5]), 10, (0, 0, 255), cv2.FILLED)
+                else :
+                    colorVolume = (255, 0, 0)
 
         # gambar volume bar
-        cv2.rectangle(img, (50,150), (85,400), (255,0,0), 3)
-        cv2.rectangle(img, (50,int(volBar)), (85,400), (255,0,0), cv2.FILLED)
-        cv2.putText(img, f'{int(volPercent)} %', (40,500), cv2.FONT_HERSHEY_COMPLEX, 1, (0 ,255,0), 3)
+        cv2.rectangle(img, (50,150), (85,350), (255,0,0), 3)
+        cv2.rectangle(img, (50,int(volBar)), (85,350), (255,0,0), cv2.FILLED)
+        cv2.putText(img, f'{int(volPercent)} %', (40,400), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 3)
+        currentVolume = volume.GetMasterVolumeLevelScalar()*100
+        cv2.putText(img, f'Vol Set: {int(currentVolume)}', (600,70), cv2.FONT_HERSHEY_COMPLEX, 1, colorVolume, 3)
 
         vc.showFps(img)
         cv2.imshow("Gambar", img)
